@@ -30,7 +30,8 @@ public class Board extends JPanel{
     private MyKeyAdapter keyAdepter;
     private int numNodes = 4;
     private ScoreBoard score;
-    private boolean girando = false;
+    private boolean turning = false;
+    private int ccFoodSpecial = 0;
     
     public void setScoreBoard(ScoreBoard scoreBoard) {
         this.score = scoreBoard;
@@ -40,33 +41,37 @@ public class Board extends JPanel{
         
         @Override
         public void keyPressed(KeyEvent e) {
-            switch(e.getKeyCode()) {
-            case KeyEvent.VK_LEFT:
-                if (snake.getDirection() != Direction.RIGHT) {
-                    snake.setDirection(Direction.LEFT);
+                switch(e.getKeyCode()) {
+                case KeyEvent.VK_LEFT:
+                    if(snake.getDirection() != Direction.RIGHT && !turning) {
+                        turning = true;
+                        snake.setDirection(Direction.LEFT);
+                    }
+                    break;
+                case KeyEvent.VK_RIGHT:
+                    if (snake.getDirection() != Direction.LEFT && !turning) {
+                        turning = true;
+                        snake.setDirection(Direction.RIGHT);
+                    }
+                    break;
+                case KeyEvent.VK_UP:
+                    if (snake.getDirection() != Direction.DOWN && !turning) {
+                        turning = true;
+                        snake.setDirection(Direction.UP);
+                    }
+                    break;
+                case KeyEvent.VK_DOWN:
+                    if (snake.getDirection() != Direction.UP && !turning) {
+                        turning = true;
+                        snake.setDirection(Direction.DOWN);
+                    }
+                    break;
+                case KeyEvent.VK_P:
+                    pauseGame();
+                    break;
+                default:
+                    break;
                 }
-                break;
-            case KeyEvent.VK_RIGHT:
-                if (snake.getDirection() != Direction.LEFT) {
-                    snake.setDirection(Direction.RIGHT);
-                }
-                break;
-            case KeyEvent.VK_UP:
-                if (snake.getDirection() != Direction.DOWN) {
-                    snake.setDirection(Direction.UP);
-                }
-                break;
-            case KeyEvent.VK_DOWN:
-                if (snake.getDirection() != Direction.UP) {
-                    snake.setDirection(Direction.DOWN);
-                }
-                break;
-            case KeyEvent.VK_P:
-                pauseGame();
-                break;
-            default:
-                break;
-            }
             repaint();
         }
     }
@@ -74,7 +79,7 @@ public class Board extends JPanel{
     public Board() {
         super();
         snake = new Snake(numNodes);
-        food = new Food(false, snake, numNodes);
+        food = new Food(snake, numNodes);
         
         keyAdepter = new MyKeyAdapter();
         addKeyListener(keyAdepter);
@@ -85,9 +90,10 @@ public class Board extends JPanel{
             public void actionPerformed(ActionEvent evt) {
                 snake.movementSnake();
                 SnakeBodyDetected();
-                EgdeBoardDetected();
+                BoardEgdeDetected();
                 FoodDetected();
                 repaint();
+                turning = false;
             }
         });
         timer.start();
@@ -99,24 +105,34 @@ public class Board extends JPanel{
         
         int newRowFood = (int) (Math.random() * (Config.numRows - 5)+5);
         int newColFood = (int) (Math.random() * (Config.numCols - 5)+5);
-        //prevent food from appearing on top of the snake
-        for (int i=0; i<snake.getListNodes().size() -1; i++) {
-            if (snake.getListNodes().get(i).getRow() == newRowFood &&
-                    snake.getListNodes().get(i).getCol() == newColFood) {
-                newRowFood = (int) (Math.random() * (Config.numRows - 5)+5);
-                newColFood = (int) (Math.random() * (Config.numCols - 5)+5);
-            }
-        }
         
         if(positionsHead[0] == positionsFood[0] && positionsHead[1] == positionsFood[1]) {
-            food.setRow(newRowFood);
-            food.setCol(newColFood);
-            
-            snake.getListNodes().add(snake.getListNodes().get(snake.getListNodes().size() - 1));
-            snake.getListNodes().add(snake.getListNodes().get(snake.getListNodes().size() - 1));
-            
-            score.incrementScore();
-            repaint();
+            if (ccFoodSpecial == 20) {
+                food.setRow(newRowFood);
+                food.setCol(newColFood);
+                
+                addNodes(5);
+                
+                ccFoodSpecial = 0;
+                repaint();
+            } else {
+                food.setRow(newRowFood);
+                food.setCol(newColFood);
+                
+                addNodes(2);
+               
+                score.incrementScore();
+                ccFoodSpecial++;
+                repaint();
+            }
+        }
+    }
+    
+    private void addNodes(int node) {
+        if (node > 0) {
+            for(int i = 0; i<node; i++) {
+                snake.getListNodes().add(snake.getListNodes().get(snake.getListNodes().size() - 1));
+            }
         }
     }
     
@@ -132,9 +148,8 @@ public class Board extends JPanel{
         }
     }
     
-    public void EgdeBoardDetected() {
+    public void BoardEgdeDetected() {
         int[] positionsHead = {snake.getRowHead(), snake.getColHead()};
-        
         for (int row=0; row<Config.numRows; row++) {
             if(positionsHead[0] == row && positionsHead[1] == (Config.numCols - Config.numCols) - 1) {
                 gameOver();
@@ -174,7 +189,11 @@ public class Board extends JPanel{
         Graphics2D g2d = (Graphics2D) g;
         paintBoard(g2d);
         snake.paintSnake(g2d, getSquareWidth(), getSquareHeight());
-        food.paintFood(g2d, getSquareWidth(), getSquareHeight());
+        if(ccFoodSpecial == 20) {
+            food.paintFood(g2d, getSquareWidth(), getSquareHeight(), Color.BLUE);
+        } else {
+            food.paintFood(g2d, getSquareWidth(), getSquareHeight(), Color.RED);
+        }
     }
     
     public int getSquareWidth() {
@@ -216,7 +235,7 @@ public class Board extends JPanel{
     
     private void reset() {
         snake = new Snake(numNodes);
-        food = new Food(false, snake, numNodes);
+        food = new Food(snake, numNodes);
         
         keyAdepter = new MyKeyAdapter();
         addKeyListener(keyAdepter);
@@ -224,6 +243,7 @@ public class Board extends JPanel{
         
         this.score.resetScore();
         deltaTime = 250;
+        ccFoodSpecial = 0;
         
     }
     
